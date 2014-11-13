@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "HVector.h"
+#include "SVector.h"
 #include "KMeans.h"
 #include "RandomSeeder.h"
 #include "Optimizer.h"
@@ -13,7 +13,7 @@
 #include "tinyformat.h"
 
 
-typedef HVector<bool> vecType;
+typedef SVector<bool> vecType;
 typedef RandomSeeder<vecType> RandomSeeder_t;
 typedef Optimizer<vecType, hammingDistance, Minimize, meanBitPrototype2> OPTIMIZER;
 typedef KMeans<vecType, RandomSeeder_t, OPTIMIZER> KMeans_t;
@@ -28,7 +28,7 @@ int hasIds;
 
 
 // Read vectors without an associated identifier file
-void readVectors(vector<HVector<bool>*> &vectors, string signatureFile, size_t maxVectors) {
+void readVectors(vector<SVector<bool>*> &vectors, string signatureFile, size_t maxVectors) {
 	
 	using namespace std;
 
@@ -63,7 +63,7 @@ void readVectors(vector<HVector<bool>*> &vectors, string signatureFile, size_t m
 	// read data
 	int count = 0; // set vector counter to 0. Use this for creating ids
 	while (sigStream.read(vecBuf, numBytes)) {
-		HVector<bool>* vector = new HVector<bool>(data, sigSize);
+		SVector<bool>* vector = new SVector<bool>(data, sigSize);
 
 		id = tfm::format("%d", count);
 
@@ -87,7 +87,7 @@ void readVectors(vector<HVector<bool>*> &vectors, string signatureFile, size_t m
 
 // Read vectors and associated identifier file
 
-void readVectors(vector<HVector<bool>*> &vectors, string idFile, string signatureFile,
+void readVectors(vector<SVector<bool>*> &vectors, string idFile, string signatureFile,
 	size_t maxVectors) {
 	using namespace std;
 
@@ -125,7 +125,7 @@ void readVectors(vector<HVector<bool>*> &vectors, string idFile, string signatur
 	// read data
 	while (getline(docidStream, id)) {
 		sigStream.read(data, numBytes);
-		HVector<bool>* vector = new HVector<bool>(data, sigSize);
+		SVector<bool>* vector = new SVector<bool>(data, sigSize);
 		vector->setID(id);
 		vectors.push_back(vector);
 		if (vectors.size() % 1000 == 0) {
@@ -143,7 +143,7 @@ void readVectors(vector<HVector<bool>*> &vectors, string idFile, string signatur
 }
 
 
-void sigKmeansCluster(vector<HVector<bool>*> &vectors, int numClusters, int numThreads) {
+void sigKmeansCluster(vector<SVector<bool>*> &vectors, int numClusters, int numThreads) {
 	
 	int maxiters = 10;
 	KMeans_t clusterer(numClusters, numThreads);
@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
 	vectorsFile = tempStr + ".bin";
 	if (hasIds) idsFile = tempStr + ".ids";
 	
-	vector<HVector<bool>*> vectors;
+	vector<SVector<bool>*> vectors;
 
 	// Load vectors
 	if (hasIds) {

@@ -1,7 +1,6 @@
 #ifndef CLUSTERER_H
 #define CLUSTERER_H
 
-#include "HVector.h"
 #include "Cluster.h"
 
 

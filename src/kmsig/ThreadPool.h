@@ -11,10 +11,15 @@
 #include <functional>
 #include <stdexcept>
 
+//------------------------------------------------
+// Simple Thread Pool
+// See: http://progsch.net/wordpress/?p=81
+// 
+// 
 // Some alterations by Lance.
 // Changed the constructor.
 // Added init(size_t numThreads) method.
-
+//------------------------------------------------
 
 class ThreadPool {
 public:

@@ -24,15 +24,15 @@
 #ifndef DISTANCE_H
 #define	DISTANCE_H
 
-#include "HVector.h"
+#include "SVector.h"
 
 
 struct hammingDistance {
-    double operator()(HVector<bool> *v1, HVector<bool> *v2) const {
-        return HVector<bool>::hammingDistance(*v1, *v2);
+    double operator()(SVector<bool> *v1, SVector<bool> *v2) const {
+        return SVector<bool>::hammingDistance(*v1, *v2);
     }
     
-    double squared(HVector<bool> *v1, HVector<bool> *v2) const {
+    double squared(SVector<bool> *v1, SVector<bool> *v2) const {
         double distance = operator()(v1, v2);
         return distance * distance;
     }    

@@ -28,7 +28,7 @@
 #include "BitMapList8.h"
 #include "BitMapList16.h"
 
-#include "HVector.h"
+#include "SVector.h"
 
 
 template <typename T>
@@ -57,7 +57,7 @@ struct meanBitPrototype {
     /**
      * We assume that the length of bit vectors is less than 65536 and greater than 0.
      */
-    void operator()(HVector<bool> *t1, vector<HVector<bool>*> &objs,
+    void operator()(SVector<bool> *t1, vector<SVector<bool>*> &objs,
             vector<int> &weights) const {
 
         int bitCountPerDimension[65536];
@@ -118,7 +118,7 @@ struct meanBitPrototype2 {
     /**
      * We assume that the length of bit vectors is less than 65536 and greater than 0.
      */
-    void operator()(HVector<bool> *t1, vector<HVector<bool>*> &objs,
+    void operator()(SVector<bool> *t1, vector<SVector<bool>*> &objs,
             vector<int> &weights) const {
         int bitCountPerDimension[65536];
         unsigned short val;
@@ -211,7 +211,7 @@ struct meanBitPrototype8 {
     /**
      * We assume that the length of bit vectors is less than 65536 and greater than 0.
      */
-    void operator()(HVector<bool> *t1, vector<HVector<bool>*> &objs,
+    void operator()(SVector<bool> *t1, vector<SVector<bool>*> &objs,
             vector<int> &weights) const {
 
         int bitCountPerDimension[65536];
