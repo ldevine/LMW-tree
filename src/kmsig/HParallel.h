@@ -18,6 +18,8 @@ void parallel_for(ThreadPool &pool, int first, int last, int grainSize, Func &f)
 	}
 	// Execute
 	for (size_t i = 0; i<results.size(); ++i) results[i].get();
+
+	//cout << pool.
 }
 
 

@@ -1,6 +1,8 @@
 #ifndef KMEANS_H
 #define KMEANS_H
 
+#include <random>
+
 #include "Cluster.h"
 #include "Clusterer.h"
 #include "Seeder.h"
@@ -22,31 +24,18 @@ public:
 		tPool.init(_numThreads);
     }
 
-    KMeans(int numClusters, float eps) : 
-		_numClusters(numClusters), 
-		_eps(eps),
-		_seeder(new SEEDER()),
-		_numThreads( 1 )
-	{
-		tPool.init(_numThreads);
-    }
-
 	KMeans(int numClusters, int numThreads) :
 		_numClusters(numClusters),
 		_seeder(new SEEDER()),
 		_numThreads(numThreads)
 	{
-		tPool.init(_numThreads);
+		tPool.init(_numThreads);		
 	}
 
     ~KMeans() {
         // Need to clean up any created cluster objects
         HUtils::purge(_clusters);
     }
-
-    //vector<size_t>& getNearestCentroids() {
-    //    return _nearestCentroid;
-    //}
 
     void setNumClusters(size_t numClusters) {
         _numClusters = numClusters;
@@ -55,7 +44,19 @@ public:
     void setMaxIters(int maxIters) {
         _maxIters = maxIters;
     }
-    
+
+	void setEps(float eps) {
+		_eps = eps;
+	}
+
+	void setSAStart(float sastart) {
+		_saStart = sastart;
+	}
+
+	void setSAIters(int saIters) {
+		_saIters = saIters;
+	}
+
     void setEnforceNumClusters(bool enforceNumClusters) {
         _enforceNumClusters = enforceNumClusters;
     }
@@ -64,7 +65,19 @@ public:
         return _numClusters;
     }
 
+	vector<float>& getRMSEs() {
+		return rmses;
+	}
+
     vector<Cluster<T>*>& cluster(vector<T*> &data) {
+
+		if (_saIters > 0) {
+			std::uniform_int_distribution<uint32_t>::param_type pt;
+			pt._Min = 0;
+			pt._Max = _numClusters - 1;
+			uint_dist.param(pt);
+		}
+	
         HUtils::purge(_clusters);
         _clusters.clear();
         _finalClusters.clear();
@@ -134,6 +147,8 @@ private:
         _nearestCentroid.resize(data.size());
         _seeder->seed(data, _centroids, _numClusters);
 
+		float rmseOld, rmseCurr;
+
         // Create as many cluster objects as there are centroids
         for (T* c : _centroids) {
             _clusters.push_back(new Cluster<T>(c));
@@ -143,31 +158,131 @@ private:
 		cout << endl << "First iteration ...";
 
         vectorsToNearestCentroid(data);
+		assignCentroids(data);
+		
         if (_maxIters == 0) {
             return;
         }
         recalculateCentroids(data);
+
+		rmseCurr = getRMSE();
+		rmseOld = rmseCurr;
+		rmses.push_back(rmseCurr);
+
+		cout << endl << 1 << "  " << rmseCurr;
+
         if (_maxIters == 1) {
             return;
         }
 
-		cout << endl << "Second iteration ...";
-
-        // Repeat until convergence.
         _converged = false;
         _iterCount = 1;
-        while (!_converged) {
-            vectorsToNearestCentroid(data);
-            recalculateCentroids(data);
-            _iterCount++;
-            if (_maxIters != -1 && _iterCount >= _maxIters) {
-                break;
-            }
+		//_saIterCount = 0;
 
+		// Do standard k-means
+		innerLoop(data, false);
+
+		// Do annealing
+		if (_saIters>0) {
+						
+			// Set up annealing schedule
+			float aRate = _saStart;
+			float saEnd = _saStart - (2.0f / 3.0f * _saStart);
+			float saStep = (_saStart - saEnd) / _saIters;
+
+			for (int i = 0; i < _saIters; i++) {
+
+				bern_dist.param(aRate - (i * saStep));
+
+				// Do perturbing
+				vectorsToNearestCentroid(data);
+				assignPerturbCentroids(data);
+				recalculateCentroids(data);
+
+				rmseCurr = getRMSE();
+				rmses.push_back(rmseCurr);
+				cout << endl << _iterCount << "  " << rmseCurr;
+
+				// Do k-means iterations
+				innerLoop(data, false);
+			}	
+		}
+
+    }
+
+	void innerLoop(vector<T*> &data)  {
+		
+		float rmseOld, rmseCurr;
+
+		rmseCurr = getRMSE();
+		rmseOld = rmseCurr;
+		
+		int innerIterCount = 0;
+
+		while (!_converged) {
+			
+			vectorsToNearestCentroid(data);
+			assignCentroids(data);
+			recalculateCentroids(data);
+
+			_iterCount++;
+			innerIterCount++;
+
+			rmseCurr = getRMSE();
+			rmses.push_back(rmseCurr);
 			cout << endl << _iterCount << "  " << getRMSE();
 
-        }
-    }
+			if ((rmseOld - rmseCurr) < _eps) break;
+			rmseOld = rmseCurr;
+
+			if (innerIterCount >= _maxIters) {
+				break;
+			}			
+		}
+	}
+
+	
+	void assignPerturbCentroids(vector<T*> &data) {
+
+		uint32_t idx;
+
+		// Serial
+		// Clear the nearest vectors in each cluster
+		for (Cluster<T> *c : _clusters) {
+			c->clearNearest();
+		}
+
+		// Accumlate into clusters
+		for (size_t i = 0; i < data.size(); i++) {
+
+			size_t nearest = _nearestCentroid[i];
+			
+			if (bern_dist(rng)) {
+				nearest = uint_dist(rng);
+				_nearestCentroid[i] = nearest;
+			}
+			
+			_clusters[nearest]->addNearest(data[i]);			
+		}
+	}
+
+
+	void assignCentroids(vector<T*> &data) {
+
+		// Serial
+		// Clear the nearest vectors in each cluster
+		for (Cluster<T> *c : _clusters) {
+			c->clearNearest();
+		}
+
+		// Accumlate into clusters
+		for (size_t i = 0; i < data.size(); i++) {
+			size_t nearest = _nearestCentroid[i];
+			_clusters[nearest]->addNearest(data[i]);
+			//cout << endl << nearest;
+		}
+	}
+
 
     /**
      * Assign vectors to nearest centroid.
@@ -196,11 +311,12 @@ private:
 			_nearestCentroid[i] = nearest.index;
 		};
 
-		parallel_for(tPool, 0, data.size(), 20, func);
+		parallel_for(tPool, 0, data.size(), 200, func);
 
 		// make sure all memory writes are visible on all CPUs
 		atomic_thread_fence(std::memory_order_release);
 		
+		/*
 		for (size_t i = 0; i != data.size(); ++i) {
 			//size_t nearest = nearestObj(data[i], _centroids);
 			auto nearest = _optimizer.nearest(data[i], _centroids);
@@ -209,20 +325,7 @@ private:
 				_converged = false;
 			}
 			_nearestCentroid[i] = nearest.index;
-		}		
-
-        // Serial
-        // Clear the nearest vectors in each cluster
-        for (Cluster<T> *c : _clusters) {
-            c->clearNearest();
-        }
-
-        // Accumlate into clusters
-        for (size_t i = 0; i < data.size(); i++) {
-            size_t nearest = _nearestCentroid[i];
-            _clusters[nearest]->addNearest(data[i]);
-			//cout << endl << nearest;
-        }
+		}*/		
     }
 
     /**
@@ -236,25 +339,59 @@ private:
 		
 		//ThreadPool tPool(4);
 
+		
 		auto func = [=](int i) { 
 			Cluster<T>* c = _clusters[i];
 			if (c->size() > 0) {
 				_optimizer.updatePrototype(c->getCentroid(), c->getNearestList(), _weights);
 			}
+			else {
+				cout << endl << "EMPTY CLUSTER !!!" << endl;
+			}
 		};
 
-		parallel_for(tPool, 0, _clusters.size(), 20, func);
+		parallel_for(tPool, 0, _clusters.size(), 10, func);
 
-		atomic_thread_fence(std::memory_order_release);
+		//atomic_thread_fence(std::memory_order_release);
 
+		/*
 		for (size_t i = 0; i != _clusters.size(); ++i) {
 			Cluster<T>* c = _clusters[i];
 			if (c->size() > 0) {
 				_optimizer.updatePrototype(c->getCentroid(), c->getNearestList(), _weights);
 			}
-		}
+		}*/
 		
     }
+
+	void print() {
+
+		hammingDistance _distance;
+		cout << endl << endl;
+
+		// Iterate over cluster2
+
+		for (int i = 0; i < 5; i++)  {
+			Cluster<T> *c = _clusters[i];
+			T *cent = c->getCentroid();
+			cent->print();
+
+			vector<T*>& members = c->getNearestList();
+
+			for (T *v : members) {
+				cout << endl;
+				v->print();
+				cout << "  " << _distance(cent, v);
+			}
+
+			cout << endl << endl;
+		}
+	}
+
+	// For simulated annealing
+	std::mt19937 rng;
+	std::uniform_int_distribution<uint32_t> uint_dist;
+	std::bernoulli_distribution bern_dist;
 
     SEEDER *_seeder;
     OPTIMIZER _optimizer;
@@ -287,7 +424,13 @@ private:
 
     // Residual for convergence
     float _eps = 0.00001f;
-    
+
+	// The starting annealing probability parameter
+	float _saStart = 0.2f;
+
+	// The number of annealing operations
+	int _saIters = 0;
+
     // has the clustering converged
     std::atomic<bool> _converged; 
 
@@ -295,6 +438,8 @@ private:
 	int  _numThreads;
 
 	ThreadPool tPool;
+
+	vector<float> rmses;
 };
 
 

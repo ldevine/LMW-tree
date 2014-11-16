@@ -2,11 +2,10 @@
 #define D_SQUARED_SEEDER_H
 
 #include <random>
+#include <ctime>
 
 #include "Seeder.h"
-#include "StdIncludes.h"
 
-namespace lmw {
 
 template <typename T, typename DistanceFunc>
 class DSquaredSeeder : public Seeder<T> {
@@ -107,7 +106,6 @@ public:
 	
 };
 
-} // namespace lmw
 
 #endif
 
