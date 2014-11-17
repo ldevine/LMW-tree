@@ -38,7 +38,7 @@ int numClusters;
 int numThreads;
 int maxVectors;
 int maxIters;
-int hasIds;
+//int hasIds;
 float eps;
 // A probability parameter for simulated annealing
 float sastart;
@@ -180,8 +180,18 @@ void writeRMSEs(vector<float> &rmses, string fileName) {
 	fout.close();
 }
 
+void writeClusters(vector<Cluster<vecType>*>& clusters, string fileName) {
 
-void sigKmeansCluster(vector<SVector<bool>*> &vectors, int numClusters, int numThreads) {
+	std::ofstream ofs(fileName);
+	for (size_t i = 0; i < clusters.size(); ++i) {
+		for (SVector<bool>* vector : clusters[i]->getNearestList()) {
+			ofs << vector->getID() << " " << i << endl;
+		}
+	}
+}
+
+
+void sigKmeansCluster(vector<SVector<bool>*> &vectors, int numClusters, int numThreads, string clusterFile) {
 	
 	int maxiters = 30;
 	KMeans_t clusterer(numClusters, numThreads);
@@ -206,6 +216,8 @@ void sigKmeansCluster(vector<SVector<bool>*> &vectors, int numClusters, int numT
 	cout << "RMSE = " << clusterer.getRMSE() << std::endl;
 	cout << "Time = " << ((float)diff_msec.count())/1000.0f << std::endl;
 
+	if (clusterFile.length() > 0) writeClusters(clusters, clusterFile);
+
 }
 
 
@@ -215,7 +227,7 @@ void parseOptions(int argc, char **argv) {
 	if ((i = ArgPos((char *)"-clusters", argc, argv)) > 0) numClusters = atoi(argv[i + 1]);
 	if ((i = ArgPos((char *)"-threads", argc, argv)) > 0) numThreads = atoi(argv[i + 1]);
 	if ((i = ArgPos((char *)"-out", argc, argv)) > 0) outFile = argv[i + 1];
-	if ((i = ArgPos((char *)"-ids", argc, argv)) > 0) hasIds = atoi(argv[i + 1]);
+	if ((i = ArgPos((char *)"-ids", argc, argv)) > 0) idsFile = argv[i + 1];
 	if ((i = ArgPos((char *)"-maxvecs", argc, argv)) > 0) maxVectors = atoi(argv[i + 1]);
 	if ((i = ArgPos((char *)"-maxiters", argc, argv)) > 0) maxIters = atoi(argv[i + 1]);
 	if ((i = ArgPos((char *)"-dim", argc, argv)) > 0) vecDim = atoi(argv[i + 1]);
@@ -230,7 +242,6 @@ int main(int argc, char** argv) {
 	// Default parameter values
 	vectorsFile = "";
 	idsFile = "";
-	hasIds = 0;
 	outFile = "";
 	maxVectors = -1;
 	vecDim = 0;
@@ -252,7 +263,7 @@ int main(int argc, char** argv) {
 	vector<SVector<bool>*> vectors;
 
 	// Load vectors
-	if (hasIds) {
+	if (idsFile.length()>0) {
 		readVectors(vectors, idsFile, vectorsFile, maxVectors, vecDim);
 	}
 	else {
@@ -260,7 +271,7 @@ int main(int argc, char** argv) {
 	}
 
 	// Cluster
-	sigKmeansCluster(vectors, numClusters, numThreads);
+	sigKmeansCluster(vectors, numClusters, numThreads, outFile);
 
 	return 0;
 }

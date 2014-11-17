@@ -15,12 +15,12 @@ int vecDimensions;
 int seed;
 int numVecs;
 string vectorsFile;
+float p; // This is parameter p for the Bernoulli distribution
 
-
-void gen(vector<SVector<bool>*> &vecs, int dim, int rngSeed, int numVectors) {
+void gen(vector<SVector<bool>*> &vecs, int dim, int rngSeed, int numVectors, float pParam) {
 
 	std::mt19937 gen(rngSeed);
-	std::bernoulli_distribution dis(0.5);
+	std::bernoulli_distribution dis(pParam);
 
 	auto genRnd = [&]() -> bool {
 		return dis(gen);		
@@ -89,12 +89,14 @@ void parseOptions(int argc, char **argv) {
 	if ((i = ArgPos((char *)"-seed", argc, argv)) > 0) seed = atoi(argv[i + 1]);
 	if ((i = ArgPos((char *)"-out", argc, argv)) > 0) vectorsFile = argv[i + 1];
 	if ((i = ArgPos((char *)"-numvecs", argc, argv)) > 0) numVecs = atoi(argv[i + 1]);
+	if ((i = ArgPos((char *)"-p", argc, argv)) > 0) p = atof(argv[i + 1]);
 }
 
 
 int main(int argc, char** argv) {
 
 	// Set default option values
+	p = 0.5;
 	seed = 12;
 	vecDimensions = 128;
 	numVecs = 100;
@@ -105,9 +107,7 @@ int main(int argc, char** argv) {
 	
 	vector<SVector<bool>*> vecs;
 
-	gen(vecs, vecDimensions, seed, numVecs);
-
-	//vecs[3]->print();
+	gen(vecs, vecDimensions, seed, numVecs, p);
 
 	// Write file
 	string fileName = tfm::format("%s.bin", vectorsFile);
@@ -117,18 +117,18 @@ int main(int argc, char** argv) {
 
 	vecs.clear();
 
+	//--------------------
+	// Some testing ...
+	//--------------------
 
-	readFile(vecs, vectorsFile);
-
+	//readFile(vecs, vectorsFile);
 	//cout << endl;
-
 	//vecs[3]->print();
-
 	// Clean up allocated vectors
-	HUtils::purge(vecs);
-
+	//HUtils::purge(vecs);
 
 	return 0;
 }
+
 
 

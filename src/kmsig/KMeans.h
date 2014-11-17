@@ -2,10 +2,13 @@
 #define KMEANS_H
 
 #include <random>
+#include <algorithm>
 
 #include "Cluster.h"
 #include "Clusterer.h"
 #include "Seeder.h"
+#include "Distance.h"
+
 
 #include "HUtils.h"
 #include "HParallel.h"
@@ -72,9 +75,7 @@ public:
     vector<Cluster<T>*>& cluster(vector<T*> &data) {
 
 		if (_saIters > 0) {
-			std::uniform_int_distribution<uint32_t>::param_type pt;
-			pt._Min = 0;
-			pt._Max = _numClusters - 1;
+			std::uniform_int_distribution<uint32_t>::param_type pt{ 0, (unsigned int)_numClusters - 1};
 			uint_dist.param(pt);
 		}
 	
@@ -180,7 +181,7 @@ private:
 		//_saIterCount = 0;
 
 		// Do standard k-means
-		innerLoop(data, false);
+		innerLoop(data);
 
 		// Do annealing
 		if (_saIters>0) {
@@ -191,8 +192,8 @@ private:
 			float saStep = (_saStart - saEnd) / _saIters;
 
 			for (int i = 0; i < _saIters; i++) {
-
-				bern_dist.param(aRate - (i * saStep));
+				std::bernoulli_distribution::param_type pt{aRate-(i*saStep)};
+				bern_dist.param(pt);
 
 				// Do perturbing
 				vectorsToNearestCentroid(data);
@@ -204,7 +205,7 @@ private:
 				cout << endl << _iterCount << "  " << rmseCurr;
 
 				// Do k-means iterations
-				innerLoop(data, false);
+				innerLoop(data);
 			}	
 		}
 

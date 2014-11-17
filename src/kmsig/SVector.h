@@ -5,11 +5,13 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <cstring>
 
 using std::string;
 using std::vector;
 using std::cout;
 using std::endl;
+using std::memcpy;
 
 // Defines for bit vector
 #define W_SIZE 64

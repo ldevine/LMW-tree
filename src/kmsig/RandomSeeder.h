@@ -1,6 +1,7 @@
 #ifndef RANDOM_SEEDER_H
 #define RANDOM_SEEDER_H
 
+#include <algorithm>
 
 #include "Seeder.h"
 

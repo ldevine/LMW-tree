@@ -1,19 +1,23 @@
-CC = g++
-INC_PATH = . 
+CC = /usr/local/bin/g++-4.8
+INC_PATH =  
 CFLAGS = -std=c++0x -O2 -march=native -mtune=native $(INC_PATH)
 
-all: kmeanssig
+all: kmsig gensig
 
 
-kmeanssig: KMeansSig.cpp
+kmsig: KMeansSig.cpp
 	$(CC) -o $@ $^ $(CFLAGS)
 
+gensig: GenSig.cpp
+	$(CC) -o $@ $^ $(CFLAGS)
 
-.PHONY: clean cleanest kmeanssig
+.PHONY: clean cleanest kmeanssig gensig
 
 
 clean:
 	rm -f *.o
 
 cleanest: clean
-	rm -f kmeanssig
+	rm -f kmsig
+	rm -f gensig
+
