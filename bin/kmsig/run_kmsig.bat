@@ -1,0 +1,1 @@
+KMeansSig -in "sigs.bin" -clusters 4 -threads 1 -out out.txt -maxiters 10 -saiters 2 -sastart 0.2
