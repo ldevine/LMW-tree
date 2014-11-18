@@ -2,6 +2,7 @@
 #define RANDOM_SEEDER_H
 
 #include <algorithm>
+#include <random>
 
 #include "Seeder.h"
 
@@ -15,7 +16,7 @@ private:
 public:
 
 	RandomSeeder() {
-		
+	
 	}
 
 	// Pre: The centroids vector is empty
@@ -29,7 +30,9 @@ public:
 		indices.reserve(data.size());
 		for (int i=0; i<data.size(); i++) indices.push_back(i);
 
-		std::random_shuffle ( indices.begin(), indices.end() );
+		std::mt19937 gen{ std::random_device{}() };
+
+		std::shuffle ( indices.begin(), indices.end(), gen );
 
 		T *vec;
 

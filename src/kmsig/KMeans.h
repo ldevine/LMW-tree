@@ -185,13 +185,22 @@ private:
 
 		// Do annealing
 		if (_saIters>0) {
+
+			cout << endl << endl << "Commencing simulated annealing ... ";
 						
 			// Set up annealing schedule
 			float aRate = _saStart;
 			float saEnd = _saStart - (2.0f / 3.0f * _saStart);
 			float saStep = (_saStart - saEnd) / _saIters;
 
+			cout << endl << "Start = " << _saStart;
+			cout << endl << "Steps = " << _saIters;
+			cout << endl << "Decrement = " << saStep;
+
 			for (int i = 0; i < _saIters; i++) {
+
+				cout << endl << endl << "Annealing iteration " << i + 1 << endl;
+
 				std::bernoulli_distribution::param_type pt{aRate-(i*saStep)};
 				bern_dist.param(pt);
 
@@ -199,6 +208,8 @@ private:
 				vectorsToNearestCentroid(data);
 				assignPerturbCentroids(data);
 				recalculateCentroids(data);
+
+				_iterCount++;
 
 				rmseCurr = getRMSE();
 				rmses.push_back(rmseCurr);
@@ -220,6 +231,8 @@ private:
 		
 		int innerIterCount = 0;
 
+		_converged = false;
+
 		while (!_converged) {
 			
 			vectorsToNearestCentroid(data);
@@ -236,7 +249,7 @@ private:
 			if ((rmseOld - rmseCurr) < _eps) break;
 			rmseOld = rmseCurr;
 
-			if (innerIterCount >= _maxIters) {
+			if (innerIterCount >= _maxIters && innerIterCount >=0) {
 				break;
 			}			
 		}

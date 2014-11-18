@@ -18,6 +18,7 @@
 #include "Optimizer.h"
 #include "Prototype.h"
 #include "Distance.h"
+#include "HOptions.h"
 
 #include "tinyformat.h"
 
@@ -30,46 +31,35 @@ typedef KMeans<vecType, RandomSeeder_t, OPTIMIZER> KMeans_t;
 //typedef KMeans<vecType, DSSeeder_t, OPTIMIZER> KMeans_t;
 
 
-string vectorsFile;
-string idsFile;
-string outFile;
-int vecDim;
-int numClusters;
-int numThreads;
-int maxVectors;
-int maxIters;
-//int hasIds;
-float eps;
-// A probability parameter for simulated annealing
-float sastart;
-// The number of simulated annealing iterations
-float saiters;
+// All our options
+HOptions options;
 
 
 // Read vectors without an associated identifier file
-void readVectors(vector<SVector<bool>*> &vectors, string signatureFile, size_t maxVectors, int dim = 0) {
+void readVectors(vector<SVector<bool>*> &vectors, HOptions &options) {
+	//string signatureFile, size_t maxVectors, int dim = 0) {
 	
 	using namespace std;
 
-	cout << signatureFile << endl;
+	cout << endl << "Reading vectors from " << options.vectorsFile << endl;
 
 	size_t sigSize;
 	string line;
 
 	// setup stream
-	ifstream sigStream(signatureFile, ios::in | ios::binary);
+	ifstream sigStream(options.vectorsFile, ios::in | ios::binary);
 
 	if (!sigStream.is_open()) return;
 	
 	// Get vector dimension
-	if (dim == 0) {
+	if (options.vecDim == 0) {
 		getline(sigStream, line);
-		sigSize = std::stoi(line);
+		options.vecDim = std::stoi(line);
 	}
-	else sigSize = dim;
+	sigSize = options.vecDim;
 
 	const size_t numBytes = sigSize / 8;
-	cout << endl << numBytes;
+	//cout << endl << numBytes;
 	
 	// Allocate buffer for vector
 	char *data = new char[numBytes];
@@ -98,30 +88,31 @@ void readVectors(vector<SVector<bool>*> &vectors, string signatureFile, size_t m
 		if (vectors.size() % 100000 == 0) {
 			cout << vectors.size() << flush;
 		}
-		if (maxVectors != -1 && vectors.size() == maxVectors) {
+		if (options.maxVectors == vectors.size()) {
 			break;
 		}
 
 		count++;
 	}
-	cout << endl << vectors.size() << endl;
+	cout << endl << vectors.size() << " vectors." << endl;
 	delete[] data;
 }
 
 
 // Read vectors and associated identifier file
-
-void readVectors(vector<SVector<bool>*> &vectors, string idFile, string signatureFile, size_t maxVectors, int dim = 0) {
+void readVectorsAndIDs(vector<SVector<bool>*> &vectors, HOptions &options) {
+		
 	using namespace std;
 
-	cout << idFile << endl << signatureFile << endl;
+	cout << endl << "Reading vectors from " << options.vectorsFile << endl;
+	cout << endl << "Reading ids from " << options.idsFile << endl;
 
 	size_t sigSize;
 	string line;
 
 	// setup stream
-	ifstream docidStream(idFile);
-	ifstream sigStream(signatureFile, ios::in | ios::binary);
+	ifstream docidStream(options.idsFile);
+	ifstream sigStream(options.vectorsFile, ios::in | ios::binary);
 
 	if (!docidStream || !sigStream) {
 		cout << "unable to open file" << endl;
@@ -129,14 +120,15 @@ void readVectors(vector<SVector<bool>*> &vectors, string idFile, string signatur
 	}
 
 	// Get vector dimension
-	if (dim == 0) {
+	if (options.vecDim == 0) {
 		getline(sigStream, line);
 		sigSize = std::stoi(line);
+		options.vecDim = sigSize;
 	}
-	else sigSize = dim;
+	else sigSize = options.vecDim;
 
 	const size_t numBytes = sigSize / 8;
-	cout << endl << numBytes;
+	//cout << endl << numBytes;
 
 	// Allocate buffer for vector
 	char *data = new char[numBytes];
@@ -160,11 +152,12 @@ void readVectors(vector<SVector<bool>*> &vectors, string idFile, string signatur
 		if (vectors.size() % 100000 == 0) {
 			cout << vectors.size() << flush;
 		}
-		if (maxVectors != -1 && vectors.size() == maxVectors) {
+		if (vectors.size() == options.maxVectors) {
 			break;
 		}
 	}
-	cout << endl << vectors.size() << endl;
+
+	cout << endl << vectors.size() << " vectors." << endl;
 	delete[] data;
 }
 
@@ -182,96 +175,95 @@ void writeRMSEs(vector<float> &rmses, string fileName) {
 
 void writeClusters(vector<Cluster<vecType>*>& clusters, string fileName) {
 
+	hammingDistance _distance;
 	std::ofstream ofs(fileName);
 	for (size_t i = 0; i < clusters.size(); ++i) {
 		for (SVector<bool>* vector : clusters[i]->getNearestList()) {
 			ofs << vector->getID() << " " << i << endl;
+			// ofs << vector->getID() << " " << i << " " << _distance(vector, 
+			//	clusters[i]->getCentroid()) << endl;
 		}
 	}
 }
 
 
-void sigKmeansCluster(vector<SVector<bool>*> &vectors, int numClusters, int numThreads, string clusterFile) {
-	
-	int maxiters = 30;
-	KMeans_t clusterer(numClusters, numThreads);
-	clusterer.setMaxIters(maxiters);
-		
-	cout << "clustering " << vectors.size() << " vectors into " << numClusters
-		<< " clusters using kmeans with maxiters = " << maxiters
-		<< std::endl;
-		
+void sigKmeansCluster(vector<SVector<bool>*> &vectors, HOptions &options) {
+			
+	KMeans_t clusterer(options.numClusters, options.numThreads);
+	clusterer.setMaxIters(options.maxIters);
+	clusterer.setEps(options.eps);
+	clusterer.setSAIters(options.saIters);
+	clusterer.setSAStart(options.saStart);
+			
+	cout << endl << "Clustering ... " << endl; 
+
+	cout << "number of threads = " << options.numThreads << endl;
+	cout << "number of vectors = " << vectors.size() << endl;
+	cout << "vector dimension = " << options.vecDim << endl;
+	cout << "number of clusters = " << options.numClusters << endl;
+	cout << "maxiters = " << options.maxIters << endl;
+	cout << "eps = " << options.eps << endl;
+	cout << "sim. annealing iters = " << options.saIters << endl;
+
 	auto start = std::chrono::steady_clock::now();
 
 	// Cluster
 	vector<Cluster<vecType>*>& clusters = clusterer.cluster(vectors);
-	
-	vector<float> &rmses = clusterer.getRMSEs();
-	writeRMSEs(rmses, "rmses3.txt");
 
 	auto end = std::chrono::steady_clock::now();
 	auto diff_msec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
+	vector<float> &rmses = clusterer.getRMSEs();
+	writeRMSEs(rmses, "rmses3.txt");
+	
+	cout << endl << endl;
 	cout << "cluster count = " << clusters.size() << std::endl;
 	cout << "RMSE = " << clusterer.getRMSE() << std::endl;
 	cout << "Time = " << ((float)diff_msec.count())/1000.0f << std::endl;
 
-	if (clusterFile.length() > 0) writeClusters(clusters, clusterFile);
-
+	if (options.outFile.length() > 0) writeClusters(clusters, options.outFile);
 }
 
 
 void parseOptions(int argc, char **argv) {
 	int i;
-	if ((i = ArgPos((char *)"-in", argc, argv)) > 0) vectorsFile = argv[i + 1];
-	if ((i = ArgPos((char *)"-clusters", argc, argv)) > 0) numClusters = atoi(argv[i + 1]);
-	if ((i = ArgPos((char *)"-threads", argc, argv)) > 0) numThreads = atoi(argv[i + 1]);
-	if ((i = ArgPos((char *)"-out", argc, argv)) > 0) outFile = argv[i + 1];
-	if ((i = ArgPos((char *)"-ids", argc, argv)) > 0) idsFile = argv[i + 1];
-	if ((i = ArgPos((char *)"-maxvecs", argc, argv)) > 0) maxVectors = atoi(argv[i + 1]);
-	if ((i = ArgPos((char *)"-maxiters", argc, argv)) > 0) maxIters = atoi(argv[i + 1]);
-	if ((i = ArgPos((char *)"-dim", argc, argv)) > 0) vecDim = atoi(argv[i + 1]);
-	if ((i = ArgPos((char *)"-eps", argc, argv)) > 0) eps = atof(argv[i + 1]);
-	if ((i = ArgPos((char *)"-sastart", argc, argv)) > 0) sastart = atof(argv[i + 1]);
-	if ((i = ArgPos((char *)"-saiters", argc, argv)) > 0) saiters = atoi(argv[i + 1]);
+	if ((i = ArgPos((char *)"-in", argc, argv)) > 0) options.vectorsFile = argv[i + 1];
+	if ((i = ArgPos((char *)"-clusters", argc, argv)) > 0) options.numClusters = atoi(argv[i + 1]);
+	if ((i = ArgPos((char *)"-threads", argc, argv)) > 0) options.numThreads = atoi(argv[i + 1]);
+	if ((i = ArgPos((char *)"-out", argc, argv)) > 0) options.outFile = argv[i + 1];
+	if ((i = ArgPos((char *)"-ids", argc, argv)) > 0) options.idsFile = argv[i + 1];
+	if ((i = ArgPos((char *)"-maxvecs", argc, argv)) > 0) options.maxVectors = atoi(argv[i + 1]);
+	if ((i = ArgPos((char *)"-maxiters", argc, argv)) > 0) options.maxIters = atoi(argv[i + 1]);
+	if ((i = ArgPos((char *)"-dim", argc, argv)) > 0) options.vecDim = atoi(argv[i + 1]);
+	if ((i = ArgPos((char *)"-eps", argc, argv)) > 0) options.eps = atof(argv[i + 1]);
+	if ((i = ArgPos((char *)"-sastart", argc, argv)) > 0) options.saStart = atof(argv[i + 1]);
+	if ((i = ArgPos((char *)"-saiters", argc, argv)) > 0) options.saIters = atoi(argv[i + 1]);
 }
 
 
 int main(int argc, char** argv) {
 
-	// Default parameter values
-	vectorsFile = "";
-	idsFile = "";
-	outFile = "";
-	maxVectors = -1;
-	vecDim = 0;
-	numClusters = 10;
-	numThreads = 1;
-	maxIters = 20;
-	eps = 0;
-	sastart = 0.0f;
-	saiters = 0;
-
 	// Process options
 	parseOptions(argc, argv);
 	
-	if (vectorsFile.length() == 0) {
+	if (options.vectorsFile.length() == 0) {
 		cout << endl << "Must provide an input file name.";
 		return 0;
 	}
 
+	// Vectors to hold all the data
 	vector<SVector<bool>*> vectors;
 
 	// Load vectors
-	if (idsFile.length()>0) {
-		readVectors(vectors, idsFile, vectorsFile, maxVectors, vecDim);
+	if (options.idsFile.length()>0) {
+		readVectorsAndIDs(vectors, options);
 	}
 	else {
-		readVectors(vectors, vectorsFile, maxVectors, vecDim);
+		readVectors(vectors, options);
 	}
 
 	// Cluster
-	sigKmeansCluster(vectors, numClusters, numThreads, outFile);
+	sigKmeansCluster(vectors, options);
 
 	return 0;
 }

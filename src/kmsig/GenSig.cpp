@@ -7,7 +7,7 @@
 
 #include "SVector.h"
 #include "VectorGenerator.h"
-
+#include "HOptions.h"
 #include "HUtils.h"
 #include "tinyformat.h"
 
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
 
 	// Set default option values
 	p = 0.5;
-	seed = 12;
+	seed = 1;
 	vecDimensions = 128;
 	numVecs = 100;
 	vectorsFile = "out.dat";
@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
 	// Some testing ...
 	//--------------------
 
-	//readFile(vecs, vectorsFile);
+	//readFile(vecs, fileName);
 	//cout << endl;
 	//vecs[3]->print();
 	// Clean up allocated vectors
